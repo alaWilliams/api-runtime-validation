@@ -13,6 +13,7 @@ const weatherGET = async (request, response) => {
 };
 
 const weatherPOST = async (request, response) => {
+  console.log('Controller executed');
   await Controller.handleRequest(request, response, service.weatherPOST);
 };
 

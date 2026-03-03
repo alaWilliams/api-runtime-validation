@@ -59,6 +59,7 @@ class ExpressServer {
 
     const weatherValidateMw = (req, res, next) => {
       const ok = validateWeather(req.body);
+      console.log('AJV middleware executed');
 
       const t = req.body?.temperature;
       if (ok && typeof t === 'number' && (t < -60 || t > 60)) {
