@@ -55,6 +55,19 @@ class ExpressServer {
     const ajv = new Ajv({ allErrors: true, strict: false });
     addFormats(ajv);
 
+    ajv.addKeyword({
+      keyword: 'realisticTemperature',
+      type: 'number',
+      validate: function(schema, data) {
+        return data >= -90 && data <= 60;
+      },
+      errors: false
+    });
+
+    if (weatherSchema.properties?.temperature) {
+      weatherSchema.properties.temperature.realisticTemperature = true;
+    }
+
     const validateWeather = ajv.compile(weatherSchema);
 
     const weatherValidateMw = (req, res, next) => {
@@ -81,11 +94,26 @@ class ExpressServer {
         });
       }
 
+      const cityCode = req.body?.cityCode;
+
+      if (cityCode === 'DXB' && t <= 0) {
+        return res.status(400).json({
+          error: "VALIDATION_FAILED",
+          message: "Business rule violation",
+          details: [{ path: "/temperature", message: "temperature must be > 0 for DXB" }]
+        });
+      }
+
+      if (cityCode === 'HEL' && (t < -40 || t > 40)) {
+        return res.status(400).json({
+          error: "VALIDATION_FAILED",
+          message: "Business rule violation",
+          details: [{ path: "/temperature", message: "temperature must be between -40 and 40 for HEL" }]
+        });
+      }
+
       next();
     };
-
-    this.app.post('/weather', weatherValidateMw);
-
 
     // Simple test to see that the server is up and responding
     this.app.get('/hello', (req, res) => res.send(`Hello World. path: ${this.openApiPath}`));
@@ -101,13 +129,15 @@ class ExpressServer {
       res.status(200);
       res.json(req.query);
     });
+    this.app.post('/weather', weatherValidateMw);
+
     this.app.use(
       OpenApiValidator.middleware({
         apiSpec: this.openApiPath,
         operationHandlers: path.join(__dirname),
         fileUploader: { dest: config.FILE_UPLOAD_PATH },
 
-        validateRequests: false 
+        validateRequests: false
       }),
     );
   }
